@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>দর্জি খাতা - লাইভ অর্ডার ট্র্যাকিং</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Hind Siliguri', sans-serif; }
+        body { background: #F1F5F9; color: #0F172A; padding: 16px; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; }
+        .container { width: 100%; max-width: 480px; background: #FFFFFF; border-radius: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); overflow: hidden; margin-top: 10px; }
+        .header { background: linear-gradient(135deg, #065F46, #047857); color: #FFFFFF; padding: 22px 20px; text-align: center; }
+        .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .header p { font-size: 13px; opacity: 0.9; }
+        .search-box { padding: 20px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 5px; }
+        .input-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #CBD5E1; border-radius: 10px; font-size: 15px; outline: none; transition: 0.2s; }
+        .input-group input:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15); }
+        .btn-track { width: 100%; background: #059669; color: white; border: none; padding: 13px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-track:hover { background: #047857; }
+        .result-area { padding: 20px; display: none; }
+        .status-badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+        .timeline { position: relative; margin: 18px 0; padding-left: 12px; }
+        .step { display: flex; align-items: flex-start; margin-bottom: 18px; position: relative; }
+        .step:last-child { margin-bottom: 0; }
+        .step-circle { width: 32px; height: 32px; border-radius: 50%; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; margin-right: 14px; flex-shrink: 0; z-index: 2; }
+        .step.active .step-circle { background: #059669; color: #FFFFFF; box-shadow: 0 0 0 4px #D1FAE5; }
+        .step-content h4 { font-size: 15px; font-weight: 700; color: #64748B; }
+        .step.active .step-content h4 { color: #065F46; }
+        .step-content p { font-size: 12px; color: #64748B; }
+        .card-info { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; margin-top: 14px; }
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #E2E8F0; font-size: 14px; }
+        .info-row:last-child { border-bottom: none; }
+        .garment-item { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+        .error-msg { padding: 16px; margin: 16px; background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; border-radius: 12px; text-align: center; display: none; font-size: 14px; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1 id="shopTitleHeader">✂️ দর্জি খাতা</h1>
+        <p>লাইভ কাস্টমার অর্ডার ট্র্যাকিং সিস্টেম</p>
+    </div>
+
+    <div class="search-box">
+        <div class="input-group">
+            <label>অর্ডার নাম্বার (#)</label>
+            <input type="number" id="orderInput" placeholder="যেমন: 1">
+        </div>
+        <div class="input-group">
+            <label>কাস্টমারের মোবাইল নাম্বার</label>
+            <input type="tel" id="phoneInput" placeholder="যেমন: 017XXXXXXXX">
+        </div>
+        <button class="btn-track" onclick="trackOrder()">🔍 অর্ডারের অবস্থা দেখুন</button>
+    </div>
+
+    <div id="errorBox" class="error-msg"></div>
+
+    <div id="resultArea" class="result-area">
+        <div style="text-align: center;">
+            <span id="currentStatusBadge" class="status-badge" style="background:#D1FAE5; color:#065F46;">লোড হচ্ছে...</span>
+            <h2 id="custNameDisplay" style="font-size: 19px; color:#0F172A;"></h2>
+            <p id="orderMetaDisplay" style="font-size: 13px; color:#64748B; margin-top:2px;"></p>
+        </div>
+
+        <div class="timeline" id="timelineSteps"></div>
+
+        <div id="garmentsBox" class="card-info" style="display:none;">
+            <div style="font-weight:700; font-size:14px; margin-bottom:6px; color:#065F46;">👗 পোশাকের কাজের অগ্রগতি:</div>
+            <div id="garmentsList"></div>
+        </div>
+
+        <div class="card-info">
+            <div class="info-row"><span>ডেলিভারি তারিখ:</span><strong id="deliveryDateVal">-</strong></div>
+            <div class="info-row"><span>মোট বিল:</span><strong id="totalBillVal">৳০</strong></div>
+            <div class="info-row"><span>অগ্রিম জমা:</span><strong id="advanceVal" style="color:#059669;">৳০</strong></div>
+            <div class="info-row"><span>বাকি টাকা:</span><strong id="dueVal" style="color:#DC2626;">৳০</strong></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const PROJECT_ID = "gen-lang-client-0319540159";
+const DATABASE_ID = "ai-studio-android-dorjikha-f5202e86-68eb-4d6c-af15-a947449ff808";
+
+function getVal(field) {
+    if (!field) return "";
+    if (field.stringValue !== undefined) return field.stringValue;
+    if (field.integerValue !== undefined) return field.integerValue;
+    if (field.doubleValue !== undefined) return field.doubleValue;
+    if (field.booleanValue !== undefined) return field.booleanValue;
+    return "";
+}
+
+async function trackOrder() {
+    const orderNo = document.getElementById('orderInput').value.trim().replace('#', '');
+    const phone = document.getElementById('phoneInput').value.trim().replace(/[\s\-\+]/g, '');
+    const errorBox = document.getElementById('errorBox');
+    const resultArea = document.getElementById('resultArea');
+
+    errorBox.style.display = 'none';
+    resultArea.style.display = 'none';
+
+    if (!orderNo) {
+        errorBox.innerText = "অনুগ্রহ করে অর্ডার নাম্বারটি লিখুন।";
+        errorBox.style.display = 'block';
+        return;
+    }
+
+    try {
+        const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DATABASE_ID}/documents/public_tracking/order_${orderNo}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            errorBox.innerText = "এই অর্ডার নাম্বারটি খুঁজে পাওয়া যায়নি। দয়া করে দোকানে যোগাযোগ করুন।";
+            errorBox.style.display = 'block';
+            return;
+        }
+        const data = await res.json();
+        const f = data.fields || {};
+        const savedPhone = String(getVal(f.customerPhone)).replace(/[\s\-\+]/g, '');
+
+        if (phone && savedPhone && !savedPhone.endsWith(phone.slice(-6))) {
+            errorBox.innerText = "প্রদত্ত মোবাইল নাম্বারটি এই অর্ডারের সাথে মিলছে না!";
+            errorBox.style.display = 'block';
+            return;
+        }
+
+        const shopName = getVal(f.shopName) || "দর্জি খাতা";
+        document.getElementById('shopTitleHeader').innerText = "✂️ " + shopName;
+        document.getElementById('custNameDisplay').innerText = getVal(f.customerName) || "সম্মানিত গ্রাহক";
+        document.getElementById('orderMetaDisplay').innerText = `অর্ডার নং: #${orderNo} | অর্ডার তারিখ: ${getVal(f.orderDate)}`;
+        document.getElementById('deliveryDateVal').innerText = getVal(f.deliveryDate) || "-";
+        document.getElementById('totalBillVal').innerText = "৳" + Math.round(Number(getVal(f.totalBill) || 0));
+        document.getElementById('advanceVal').innerText = "৳" + Math.round(Number(getVal(f.advancePaid) || 0));
+        document.getElementById('dueVal').innerText = "৳" + Math.round(Number(getVal(f.dueAmount) || 0));
+
+        const status = String(getVal(f.status) || "চলমান");
+        const membersRaw = String(getVal(f.membersDataJson) || "[]");
+        let members = [];
+        try { members = JSON.parse(membersRaw); } catch(e) {}
+
+        let anyCutting = false, anySewing = false, allReady = false;
+        const garmentsList = document.getElementById('garmentsList');
+        garmentsList.innerHTML = "";
+        if (members.length > 0) {
+            document.getElementById('garmentsBox').style.display = 'block';
+            let readyCount = 0;
+            members.forEach(m => {
+                const isCut = !!m.isCuttingDone;
+                const isSew = !!m.isSewingDone;
+                const isRdy = !!m.isReady;
+                if (isCut) anyCutting = true;
+                if (isSew) anySewing = true;
+                if (isRdy) readyCount++;
+                let stageText = "⏳ অপেক্ষমান (পেন্ডিং)";
+                if (isRdy || status.includes("রেডি") || status.includes("পরিশোধিত")) stageText = "🎁 ডেলিভারির জন্য প্রস্তুত";
+                else if (isSew) stageText = "🧵 সেলাই সম্পন্ন";
+                else if (isCut) stageText = "✂️ কাটিং সম্পন্ন (সেলাই চলছে)";
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'garment-item';
+                itemDiv.innerHTML = `<strong>${m.memberName || 'সদস্য'} (${m.jamaType || m.clothType || 'পোশাক'})</strong><br>অবস্থা: ${stageText}`;
+                garmentsList.appendChild(itemDiv);
+            });
+            if (readyCount === members.length && members.length > 0) allReady = true;
+        } else {
+            document.getElementById('garmentsBox').style.display = 'none';
+        }
+
+        const isDelivered = status.includes("পরিশোধিত") || status.includes("ডেলিভারি");
+        const isReadyOrder = allReady || status.includes("রেডি") || isDelivered;
+        const isSewingOrder = anySewing || isReadyOrder || status.includes("সেলাই");
+        const isCuttingOrder = anyCutting || isSewingOrder || status.includes("কাটিং");
+
+        let currentLabel = "✅ অর্ডার গৃহীত (চলমান)";
+        if (isDelivered) currentLabel = "🎉 ডেলিভারি ও পরিশোধ সম্পন্ন";
+        else if (isReadyOrder) currentLabel = "🎁 ডেলিভারির জন্য প্রস্তুত (রেডি)";
+        else if (isSewingOrder) currentLabel = "🧵 সেলাই সম্পন্ন / চলছে";
+        else if (isCuttingOrder) currentLabel = "✂️ কাটিং সম্পন্ন হয়েছে";
+
+        document.getElementById('currentStatusBadge').innerText = currentLabel;
+
+        const steps = [
+            { title: "অর্ডার গ্রহণ", desc: "আপনার পোশাকের মাপ ও অর্ডার সফলভাবে গ্রহণ করা হয়েছে।", done: true },
+            { title: "কাটিং সম্পন্ন", desc: "কাটিং মাস্টার আপনার পোশাকের কাপড় কাটিং সম্পন্ন করেছেন।", done: isCuttingOrder },
+            { title: "সেলাই চলছে / সম্পন্ন", desc: "দক্ষ কারিগর দ্বারা পোশাকের সেলাই ও ফিনিশিং সম্পন্ন।", done: isSewingOrder },
+            { title: "ডেলিভারির জন্য প্রস্তুত", desc: "আপনার পোশাক তৈরি! দোকানে এসে সংগ্রহ করতে পারেন।", done: isReadyOrder }
+        ];
+
+        const timeline = document.getElementById('timelineSteps');
+        timeline.innerHTML = "";
+        steps.forEach((s, i) => {
+            timeline.innerHTML += `
+                <div class="step ${s.done ? 'active' : ''}">
+                    <div class="step-circle">${s.done ? '✓' : (i + 1)}</div>
+                    <div class="step-content">
+                        <h4>${s.title}</h4>
+                        <p>${s.desc}</p>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultArea.style.display = 'block';
+    } catch (err) {
+        errorBox.innerText = "সার্ভারের সাথে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ চেক করুন।";
+        errorBox.style.display = 'block';
+    }
+}
+
+window.onload = function() {
+    const params = new URLSearchParams(window.location.search);
+    const o = params.get('order');
+    const p = params.get('phone');
+    if (o) document.getElementById('orderInput').value = o;
+    if (p) document.getElementById('phoneInput').value = p;
+    if (o) trackOrder();
+};
+</script>
+</body>
+</html>
